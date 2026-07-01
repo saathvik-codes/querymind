@@ -1,0 +1,77 @@
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* fallback dark+indigo values so there's no flash before React sets
+     data-mode/data-palette on <html> */
+  --bg: #131316;
+  --sidebar-bg: #0e0e10;
+  --surface: #1b1b1f;
+  --surface-2: #232328;
+  --surface-hover: #29292f;
+  --border: #2e2e34;
+  --text: #ececef;
+  --text-muted: #96969e;
+  --text-faint: #5f5f68;
+  --code-bg: #0e0e10;
+  --accent: #6366f1;
+  --accent-strong: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.14);
+}
+
+[data-mode='dark'] {
+  --bg: #131316;
+  --sidebar-bg: #0e0e10;
+  --surface: #1b1b1f;
+  --surface-2: #232328;
+  --surface-hover: #29292f;
+  --border: #2e2e34;
+  --text: #ececef;
+  --text-muted: #96969e;
+  --text-faint: #5f5f68;
+  --code-bg: #0e0e10;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-mode='light'] {
+  --bg: #ffffff;
+  --sidebar-bg: #f7f7f8;
+  --surface: #ffffff;
+  --surface-2: #f3f3f5;
+  --surface-hover: #ebebee;
+  --border: #e4e4e8;
+  --text: #16161a;
+  --text-muted: #6b6b74;
+  --text-faint: #a3a3ab;
+  --code-bg: #f7f7f8;
+  --shadow: 0 8px 24px rgba(20, 20, 30, 0.08);
+}
+
+[data-palette='indigo'] { --accent: #6366f1; --accent-strong: #4f46e5; --accent-soft: rgba(99, 102, 241, 0.14); }
+[data-palette='emerald'] { --accent: #10b981; --accent-strong: #059669; --accent-soft: rgba(16, 185, 129, 0.14); }
+[data-palette='violet']  { --accent: #a855f7; --accent-strong: #9333ea; --accent-soft: rgba(168, 85, 247, 0.14); }
+[data-palette='amber']   { --accent: #f59e0b; --accent-strong: #d97706; --accent-soft: rgba(245, 158, 11, 0.16); }
+[data-palette='rose']    { --accent: #f43f5e; --accent-strong: #e11d48; --accent-soft: rgba(244, 63, 94, 0.14); }
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent-soft); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+::-webkit-scrollbar-track { background: transparent; }
