@@ -8,10 +8,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import json
+import traceback
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from chain import answer, answer_stream, generate_example_questions, json_default
 from schema import get_dataset, list_datasets, register_csv_dataset
@@ -20,6 +21,14 @@ app = FastAPI(title="QueryMind")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
+
+
+# TEMPORARY: surfaces the real exception instead of a bare 500, to diagnose
+# the first production deploy without needing dashboard log access. Remove
+# once the LLM path is confirmed working end-to-end.
+@app.exception_handler(Exception)
+async def debug_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500, content={"error": str(exc), "traceback": traceback.format_exc()})
 
 
 class QuestionRequest(BaseModel):
