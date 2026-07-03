@@ -1,5 +1,7 @@
 # QueryMind — Natural Language Analytics Interface
 
+**Live demo:** https://frontend-nine-theta-z3y6m1im3e.vercel.app
+
 Ask plain-English questions about a real e-commerce dataset. QueryMind translates
 them to DuckDB SQL using a LangChain NL2SQL chain, executes the query, and returns
 a natural-language answer alongside the exact SQL for full transparency.
