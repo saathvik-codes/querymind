@@ -1,6 +1,9 @@
 """
 NL → SQL chain with self-correction.
-Supports Claude (ANTHROPIC_API_KEY) or Ollama (OLLAMA_MODEL env var, default llama3.1:8b).
+Set LLM to one of:
+  claude (default) — needs ANTHROPIC_API_KEY, paid credits required
+  groq              — needs GROQ_API_KEY, free tier (console.groq.com)
+  ollama            — needs a locally reachable Ollama daemon, OLLAMA_MODEL env var
 Dataset-aware: works against the built-in "default" dataset or any user-uploaded
 CSV registered via schema.register_csv_dataset, using that dataset's own schema
 text, connection, and column classification.
@@ -59,6 +62,24 @@ def _chat(system: str, user: str) -> str:
         resp = llm.invoke([SystemMessage(content=system), HumanMessage(content=user)])
         return resp.content.strip()
 
+    if model_env == "groq":
+        import httpx
+        resp = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
+            json={
+                "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                "temperature": 0,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+
     # Default: Anthropic Claude
     from anthropic import Anthropic
     client = Anthropic()
@@ -85,6 +106,35 @@ def _chat_stream(system: str, user: str) -> Iterator[str]:
         for chunk in llm.stream([SystemMessage(content=system), HumanMessage(content=user)]):
             if chunk.content:
                 yield chunk.content
+        return
+
+    if model_env == "groq":
+        import httpx, json as _json
+        with httpx.stream(
+            "POST",
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
+            json={
+                "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                "temperature": 0,
+                "stream": True,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            },
+            timeout=30,
+        ) as resp:
+            resp.raise_for_status()
+            for line in resp.iter_lines():
+                if not line.startswith("data: "):
+                    continue
+                payload = line[len("data: "):]
+                if payload.strip() == "[DONE]":
+                    break
+                delta = _json.loads(payload)["choices"][0]["delta"].get("content")
+                if delta:
+                    yield delta
         return
 
     from anthropic import Anthropic
