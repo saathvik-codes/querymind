@@ -30,6 +30,7 @@ export interface AssistantMessage {
   explanation: string
   followups?: string[]
   error?: string
+  question?: string
 }
 
 export interface UserMessage {

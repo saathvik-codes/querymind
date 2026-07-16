@@ -54,16 +54,32 @@ All 12 analytical query types run and verified directly against DuckDB (without 
 - **Frontend**: React 18, TypeScript, Vite
 - **Data**: UCI Online Retail II (public, citable)
 
+## Auth
+
+Every data-touching route (`/query`, `/query/stream`, `/datasets*`, `/schema`, `/examples`)
+requires an `X-API-Key` header matching the `API_KEY` env var. If `API_KEY` is left unset
+the check is skipped (local-dev convenience only) — always set it in any deployed
+environment. The frontend sends it automatically when `VITE_API_KEY` is set at build time.
+
+Requests are also rate-limited (in-memory, per API key/IP, `RATE_LIMIT_PER_MINUTE`,
+default 20/min) and this — like the deploy itself — only works correctly on a single
+instance; see the note in `render.yaml`.
+
+See `.env.example` for the full list of env vars (LLM provider keys, `API_KEY`,
+`ALLOWED_ORIGINS`, rate limit, and upload TTL/cleanup interval).
+
 ## Running locally
 
 ```bash
 # Backend
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=your_key   # or set LLM=ollama + OLLAMA_MODEL
+cp .env.example .env   # fill in ANTHROPIC_API_KEY (or LLM=ollama/groq) and API_KEY
 cd backend && uvicorn main:app --reload --port 8030
 
 # Frontend (separate terminal)
-cd frontend && npm install && npm run dev
+cd frontend && npm install
+echo "VITE_API_KEY=<same value as API_KEY above>" >> .env.local
+npm run dev
 # Open http://localhost:5200
 ```
 

@@ -39,7 +39,16 @@ export function AssistantBubble({
           </div>
         )}
 
-        {message.error && <div className="msg-error">{message.error}</div>}
+        {message.error && (
+          <div className="msg-error">
+            <span>{message.error}</span>
+            {message.question && (
+              <button className="retry-button" onClick={() => onFollowup(message.question!)}>
+                Retry
+              </button>
+            )}
+          </div>
+        )}
 
         {message.sql && (
           <div className="sql-section">

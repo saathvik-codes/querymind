@@ -586,6 +586,24 @@
   color: #f87171;
   font-size: 13.5px;
   padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.retry-button {
+  background: transparent;
+  border: 1px solid #f87171;
+  color: #f87171;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.retry-button:hover {
+  background: rgba(248, 113, 113, 0.12);
 }
 
 /* sql section */

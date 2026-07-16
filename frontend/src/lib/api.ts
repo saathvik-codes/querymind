@@ -5,6 +5,12 @@ import type { DatasetInfo, StreamEvent } from '../types'
 // VITE_API_URL must point straight at the deployed backend (e.g. Render).
 const API = import.meta.env.VITE_API_URL || '/api'
 
+// Sent as X-API-Key on every data-touching request. Set VITE_API_KEY at build
+// time to match the backend's API_KEY env var; if the backend has no
+// API_KEY configured (local dev), this header is simply ignored.
+const API_KEY = import.meta.env.VITE_API_KEY || ''
+const authHeaders: Record<string, string> = API_KEY ? { 'X-API-Key': API_KEY } : {}
+
 /**
  * The backend uses a plain `StreamingResponse` (not EventSource-compatible,
  * since it's a POST with a body), so we parse the `data: {...}\n\n` framing
@@ -18,7 +24,7 @@ export async function streamQuery(
 ): Promise<void> {
   const res = await fetch(`${API}/query/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({ question, dataset_id: datasetId }),
     signal,
   })
@@ -54,7 +60,7 @@ export async function streamQuery(
 }
 
 export async function fetchDatasets(): Promise<DatasetInfo[]> {
-  const res = await fetch(`${API}/datasets`)
+  const res = await fetch(`${API}/datasets`, { headers: { ...authHeaders } })
   if (!res.ok) throw new Error(`Failed to load datasets (${res.status})`)
   const data = await res.json()
   return data.datasets as DatasetInfo[]
@@ -63,7 +69,7 @@ export async function fetchDatasets(): Promise<DatasetInfo[]> {
 export async function uploadDataset(file: File): Promise<DatasetInfo> {
   const formData = new FormData()
   formData.append('file', file)
-  const res = await fetch(`${API}/datasets/upload`, { method: 'POST', body: formData })
+  const res = await fetch(`${API}/datasets/upload`, { method: 'POST', headers: { ...authHeaders }, body: formData })
   if (!res.ok) {
     const detail = await res.json().catch(() => null)
     throw new Error(detail?.detail || `Upload failed (${res.status})`)

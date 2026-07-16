@@ -109,6 +109,7 @@ export default function App() {
       role: 'assistant',
       status: 'pending',
       explanation: '',
+      question: text,
     }
 
     if (!chatId) {

@@ -1,3 +1,9 @@
+# NOTE: `plan: free` is a single instance (no horizontal scaling, and it
+# sleeps on inactivity). The auth, CORS, and rate-limit hardening added to
+# backend/security.py assumes exactly this: the rate limiter and dataset
+# cleanup task keep their state in-process. If this is ever moved to a
+# multi-instance plan, the rate limiter needs a shared store (e.g. Redis)
+# instead of its current in-memory dict — that migration is out of scope here.
 services:
   - type: web
     name: querymind-backend
@@ -10,3 +16,11 @@ services:
         sync: false
       - key: LLM
         value: groq
+      - key: API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "20"
+      - key: UPLOAD_TTL_SECONDS
+        value: "86400"
