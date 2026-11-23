@@ -213,6 +213,7 @@ export default function App() {
 
         {messages.length === 0 ? (
           <div className="welcome">
+            <img src="/illustrations/qm-empty-notebook.webp" alt="" width={300} height={200} className="welcome-art illus" />
             <div className="welcome-title">QueryMind</div>
             <p className="welcome-sub">Ask a question in plain English and get an answer, the exact SQL, and a chart when one fits.</p>
             <div className="dataset-banner">
