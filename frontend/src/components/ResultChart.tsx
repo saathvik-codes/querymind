@@ -5,7 +5,8 @@ type PlotHint = { type: 'bar' | 'line'; labelKey: string; valueKey: string }
 
 function formatTick(value: unknown): string {
   if (typeof value === 'number') {
-    return Math.abs(value) >= 1000 ? value.toLocaleString(undefined, { maximumFractionDigits: 0 }) : String(value)
+    // compact (1.6M, 640K) so long axis labels are never clipped
+    return Math.abs(value) >= 1000 ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) : String(value)
   }
   return String(value ?? '')
 }
@@ -76,7 +77,7 @@ export default function ResultChart({ chart, rows }: { chart: PlotHint; rows: Ro
                 color: 'var(--text)',
               }}
             />
-            <Bar dataKey={chart.valueKey} fill="var(--accent)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey={chart.valueKey} fill="var(--accent)" radius={[2, 2, 0, 0]} />
           </BarChart>
         )}
       </ResponsiveContainer>

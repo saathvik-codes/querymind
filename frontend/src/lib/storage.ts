@@ -22,7 +22,7 @@ export function saveChats(chats: Chat[]): void {
   }
 }
 
-const DEFAULT_THEME: ThemeState = { palette: 'indigo', mode: 'dark' }
+const DEFAULT_THEME: ThemeState = { palette: 'indigo', mode: 'light' }
 
 export function loadTheme(): ThemeState {
   try {
