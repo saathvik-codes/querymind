@@ -1,9 +1,24 @@
 import { useState } from 'react'
+import type { DatasetInfo } from '../types'
 
 interface Step {
   icon: JSX.Element
   title: string
-  body: string
+  // A function body is built from the dataset the user currently has selected
+  body: string | ((dataset?: DatasetInfo) => string)
+}
+
+function describeDataset(d?: DatasetInfo): string {
+  if (!d || d.row_count === 0) {
+    return 'QueryMind answers questions about the dataset you have selected. Pick one from the bar at the top, or upload your own CSV.'
+  }
+  const cols = d.columns.slice(0, 6).map((c) => c.name).join(', ')
+  return (
+    `You are asking ${d.name}: ${d.row_count.toLocaleString()} rows` +
+    (cols ? ` with columns such as ${cols}` : '') +
+    '. Every question is answered against this data, so ask about those columns. ' +
+    'You can switch datasets or upload your own CSV from the bar at the top.'
+  )
 }
 
 const STEPS: Step[] = [
@@ -42,14 +57,15 @@ const STEPS: Step[] = [
       </svg>
     ),
     title: 'What data is this actually asking?',
-    body: 'Right now QueryMind is wired to one real dataset: 1M+ UK e-commerce transactions from 2009–2011 — revenue, products, customers, and countries. Every question is answered against that data, so ask about those angles.',
+    body: describeDataset,
   },
 ]
 
-export default function OnboardingTour({ onClose }: { onClose: () => void }) {
+export default function OnboardingTour({ onClose, dataset }: { onClose: () => void; dataset?: DatasetInfo }) {
   const [step, setStep] = useState(0)
   const isLast = step === STEPS.length - 1
   const current = STEPS[step]
+  const body = typeof current.body === 'function' ? current.body(dataset) : current.body
 
   return (
     <div className="onboarding-backdrop" onClick={onClose}>
@@ -62,7 +78,7 @@ export default function OnboardingTour({ onClose }: { onClose: () => void }) {
           {current.icon}
         </div>
         <h2 className="onboarding-title">{current.title}</h2>
-        <p className="onboarding-body">{current.body}</p>
+        <p className="onboarding-body">{body}</p>
 
         <div className="onboarding-dots">
           {STEPS.map((_, i) => (

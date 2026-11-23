@@ -7,28 +7,15 @@ import { streamQuery, fetchDatasets, uploadDataset } from './lib/api'
 import { loadChats, saveChats, loadTheme, saveTheme, hasSeenOnboarding, setSeenOnboarding } from './lib/storage'
 import type { AssistantMessage, Chat, DatasetInfo, ThemeState } from './types'
 
+// Placeholder shown only until the backend answers GET /datasets. The real name, row count, columns and
+// starter questions all come from the API, so nothing about the data is written into the frontend.
 const DEFAULT_DATASET: DatasetInfo = {
   dataset_id: 'default',
-  name: 'UK Online Retail (2009–2011)',
-  row_count: 1_041_670,
+  name: 'Loading dataset…',
+  row_count: 0,
   columns: [],
   example_questions: [],
 }
-
-const EXAMPLE_CATEGORIES: { label: string; questions: string[] }[] = [
-  {
-    label: 'Revenue',
-    questions: ['Which country generated the most revenue?', 'Which month had the highest revenue?'],
-  },
-  {
-    label: 'Products',
-    questions: ['Top 5 products by total revenue?', 'Products with more than 10,000 total units sold?'],
-  },
-  {
-    label: 'Customers',
-    questions: ['How many unique customers each month in 2011?', 'Average order value by country?'],
-  },
-]
 
 function newId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -199,11 +186,10 @@ export default function App() {
   }
 
   const messages = activeChat?.messages ?? []
-  const isDefaultDataset = activeDatasetId === 'default'
 
   return (
     <div className="app-shell">
-      {showOnboarding && <OnboardingTour onClose={closeOnboarding} />}
+      {showOnboarding && <OnboardingTour onClose={closeOnboarding} dataset={selectedDataset} />}
 
       <Sidebar
         chats={chats}
@@ -234,25 +220,12 @@ export default function App() {
                 <ellipse cx="12" cy="5" rx="8" ry="3" />
                 <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" />
               </svg>
-              Currently querying <strong>{selectedDataset.name}</strong> ({selectedDataset.row_count.toLocaleString()} rows)
+              Currently querying <strong>{selectedDataset.name}</strong>
+              {selectedDataset.row_count > 0 && <> ({selectedDataset.row_count.toLocaleString()} rows)</>}
             </div>
 
-            {isDefaultDataset ? (
-              <div className="example-categories">
-                {EXAMPLE_CATEGORIES.map((cat) => (
-                  <div key={cat.label}>
-                    <div className="example-category-label">{cat.label}</div>
-                    <div className="example-category-grid">
-                      {cat.questions.map((ex) => (
-                        <button key={ex} className="example-card" onClick={() => submit(ex)}>
-                          {ex}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
+            {/* Starter questions come from the backend, built from this dataset's own columns */}
+            {selectedDataset.example_questions.length > 0 && (
               <div className="example-categories">
                 <div className="example-category-label">Try asking</div>
                 <div className="example-category-grid">

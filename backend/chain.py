@@ -247,11 +247,23 @@ def _rank_numeric(numeric_cols: list[str]) -> list[str]:
     dataset's first suggested question becomes 'total time' instead of
     'total amount', which is technically valid SQL but useless to a user."""
     def rank(name: str) -> tuple[int, int]:
-        return (0 if _MEASURE_LIKE.search(name) else (2 if _ID_LIKE.match(name) else 1), numeric_cols.index(name))
+        if _MONEY_LIKE.search(name):
+            tier = 0      # revenue, amount, sales...: the number people actually ask about
+        elif _MEASURE_LIKE.search(name):
+            tier = 1      # price, quantity, score...
+        elif _ID_LIKE.match(name):
+            tier = 3
+        else:
+            tier = 2
+        return (tier, numeric_cols.index(name))
     return sorted(numeric_cols, key=rank)
 
 
-_ID_LIKE_NAME = re.compile(r"^(id|uuid|guid)$|_id$|^id_", re.I)
+_MONEY_LIKE = re.compile(r"revenue|amount|sales|profit|total|cost|salary|income|spend", re.I)
+# identifier-shaped names: id, uuid, invoice_no, stock_code, order_ref ...
+_ID_LIKE_NAME = re.compile(r"^(id|uuid|guid)$|_id$|^id_|_(no|num|number|code|key|ref|sku)$", re.I)
+# names that usually make a good "break it down by ..." column
+_DIMENSION_LIKE = re.compile(r"country|region|state|city|category|segment|type|status|channel|gender|department|brand|group|class|source", re.I)
 
 
 def _rank_categorical(cat_cols: list[str]) -> list[str]:
@@ -260,7 +272,13 @@ def _rank_categorical(cat_cols: list[str]) -> list[str]:
     is a far weaker suggestion than 'break this down by country' — push
     id-shaped names to the back instead of excluding them outright."""
     def rank(name: str) -> tuple[int, int]:
-        return (1 if _ID_LIKE_NAME.search(name) else 0, cat_cols.index(name))
+        if _ID_LIKE_NAME.search(name):
+            tier = 2
+        elif _DIMENSION_LIKE.search(name):
+            tier = 0
+        else:
+            tier = 1
+        return (tier, cat_cols.index(name))
     return sorted(cat_cols, key=rank)
 
 

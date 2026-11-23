@@ -7,6 +7,7 @@ of hardcoded UK-retail wording).
 """
 import io
 import json
+import os
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -15,7 +16,8 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-DATA = Path(__file__).resolve().parent.parent / "data" / "retail.csv"
+# Where the built-in dataset lives. Override with DEFAULT_DATASET_PATH (e.g. a mounted disk) without touching code.
+DATA = Path(os.environ.get("DEFAULT_DATASET_PATH") or Path(__file__).resolve().parent.parent / "data" / "retail.csv")
 MAX_ROWS = 1_000_000
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # 200MB — covers real-world CSVs (e.g. the ~144MB Kaggle credit-card-fraud dataset)
 
@@ -69,6 +71,9 @@ def _load_default() -> Dataset:
         )
     """)
     row_count = con.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+    # Row count and date range are read from the data, so the prompt and the dataset name never go stale
+    first, last = con.execute("SELECT MIN(invoice_date), MAX(invoice_date) FROM orders").fetchone()
+    date_range = f"{first:%Y-%m-%d} to {last:%Y-%m-%d}"
     schema_text = """
 Table: orders
 Columns:
@@ -76,13 +81,13 @@ Columns:
   stock_code   VARCHAR  — product/item code
   description  VARCHAR  — product name/description
   quantity     INTEGER  — units sold (always > 0; cancellations excluded)
-  invoice_date TIMESTAMP — transaction datetime (range: 2009-12-01 to 2011-12-09)
+  invoice_date TIMESTAMP — transaction datetime (range: __DATE_RANGE__)
   price        DOUBLE   — unit price in GBP (£)
   customer_id  VARCHAR  — customer identifier (NULL for guest/unregistered orders)
   country      VARCHAR  — customer's country (predominantly United Kingdom)
   revenue      DOUBLE   — computed column: quantity × price (in £)
 
-Data: ~400K valid order lines from a UK-based online retailer.
+Data: __ROW_COUNT__ valid order lines from a UK-based online retailer.
 Useful DuckDB date functions: DATE_PART('year', invoice_date), DATE_TRUNC('month', invoice_date),
   STRFTIME(invoice_date, '%Y-%m'), date_diff('day', d1, d2).
 For top-N queries use: ORDER BY ... DESC LIMIT N.
@@ -100,7 +105,9 @@ Return results rounded to 2 decimal places for monetary values.
         Column("country", "categorical"),
         Column("revenue", "numeric"),
     ]
-    return Dataset(id="default", name="UK Online Retail (2009–2011)", con=con, table="orders",
+    schema_text = schema_text.replace("__DATE_RANGE__", date_range).replace("__ROW_COUNT__", f"{row_count:,}")
+    name = os.environ.get("DEFAULT_DATASET_NAME") or f"UK Online Retail ({first.year}–{last.year})"
+    return Dataset(id="default", name=name, con=con, table="orders",
                     schema_text=schema_text, row_count=row_count, columns=columns)
 
 
