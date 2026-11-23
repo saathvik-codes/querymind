@@ -3,6 +3,7 @@ QueryMind FastAPI backend.
 Run: uvicorn main:app --reload --port 8030
 """
 import asyncio
+import logging
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -21,7 +22,21 @@ from cleanup import periodic_cleanup_task, sweep_expired_uploads
 from schema import get_dataset, list_datasets, register_csv_dataset
 from security import enforce_rate_limit, require_api_key
 
+log = logging.getLogger("querymind")
+
 MAX_QUESTION_LENGTH = 2000
+
+
+def _friendly_error(exc: Exception) -> str:
+    """A message safe to show a visitor. The real exception goes to the server log, never to the browser."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if isinstance(exc, KeyError) and exc.args and "API_KEY" in str(exc.args[0]):
+        return "The AI service is not configured on the server yet. The site owner needs to add its API key."
+    if status in (401, 403):
+        return "The AI service rejected the server's API key. The site owner needs to update it."
+    if status == 429:
+        return "The AI service is busy right now. Please try again in a minute."
+    return "Something went wrong while answering. Please try again."
 
 _ALLOWED_ORIGINS = [
     origin.strip()
@@ -134,8 +149,12 @@ def query_stream(req: QuestionRequest, request: Request, api_key: str = Depends(
         raise HTTPException(status_code=404, detail="Unknown dataset")
 
     def event_source():
-        for event in answer_stream(req.question, req.dataset_id):
-            yield f"data: {json.dumps(event, default=json_default)}\n\n"
+        try:
+            for event in answer_stream(req.question, req.dataset_id):
+                yield f"data: {json.dumps(event, default=json_default)}\n\n"
+        except Exception as exc:  # the AI provider failed mid-answer: tell the user instead of ending the stream silently
+            log.exception("query stream failed")
+            yield f"data: {json.dumps({'type': 'error', 'error': _friendly_error(exc)})}\n\n"
 
     return StreamingResponse(event_source(), media_type="text/event-stream")
 

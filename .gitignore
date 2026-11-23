@@ -7,3 +7,4 @@ dist/
 data/*
 !data/retail.csv
 *.tsbuildinfo
+.vercel
