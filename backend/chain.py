@@ -8,10 +8,11 @@ Dataset-aware: works against the built-in "default" dataset or any user-uploaded
 CSV registered via schema.register_csv_dataset, using that dataset's own schema
 text, connection, and column classification.
 """
-import os, re, textwrap
+import logging, os, re, textwrap
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Iterator
+import localsql
 from schema import Dataset, get_dataset, run_sql
 
 MAX_CORRECTION_ATTEMPTS = 2
@@ -376,6 +377,30 @@ def _cache_key(question: str, dataset_id: str) -> str:
     return f"{dataset_id}:" + re.sub(r"\s+", " ", question.strip().lower())
 
 
+def _answer_local(question: str, dataset: Dataset, dataset_id: str, cache_key: str) -> Iterator[dict]:
+    """Same event stream as the AI path, produced by the built-in engine (no API key)."""
+    p = localsql.plan(question, dataset)
+    if p is None:
+        yield {"type": "error", "error": localsql.help_text(dataset)}
+        return
+    yield {"type": "sql", "sql": p.sql}
+    try:
+        rows = run_sql(p.sql, dataset_id)
+    except Exception as exc:
+        yield {"type": "error", "error": f"That question could not be run on this dataset ({exc})"}
+        return
+    yield {"type": "rows", "rows": rows, "row_count": len(rows)}
+    chart = suggest_chart(rows)
+    if chart:
+        yield {"type": "chart", "chart": chart}
+    text = p.explain(rows)
+    for word in text.split(" "):
+        yield {"type": "explanation_delta", "text": word + " "}
+    _CACHE[cache_key] = {"sql": p.sql, "rows": rows, "explanation": text}
+    yield {"type": "followups", "questions": suggest_followups(question, p.sql, dataset)}
+    yield {"type": "done"}
+
+
 def answer_stream(question: str, dataset_id: str = "default") -> Iterator[dict]:
     """Streaming counterpart to `answer()`: yields event dicts as soon as each
     stage completes instead of blocking on the full pipeline, so the frontend
@@ -404,7 +429,16 @@ def answer_stream(question: str, dataset_id: str = "default") -> Iterator[dict]:
         yield {"type": "done"}
         return
 
-    sql = _strip_fences(_chat(_sql_system(dataset.schema_text), question))
+    if os.environ.get("LLM", "claude").lower() == "local":
+        yield from _answer_local(question, dataset, dataset_id, cache_key)
+        return
+    try:
+        sql = _strip_fences(_chat(_sql_system(dataset.schema_text), question))
+    except Exception:
+        # The AI model is unavailable (bad key, rate limit, outage): use the built-in engine instead
+        logging.getLogger("querymind").exception("AI model failed, using the built-in engine")
+        yield from _answer_local(question, dataset, dataset_id, cache_key)
+        return
 
     rows = None
     last_error = None
