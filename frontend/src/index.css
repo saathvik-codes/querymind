@@ -815,6 +815,6 @@ tr:last-child td { border-bottom: none; }
 
 /* Illustrations are drawn in dark ink on paper: in dark mode flip lightness and keep the hues */
 [data-mode='dark'] .illus { filter: invert(0.92) hue-rotate(180deg); }
-.welcome-art { display: block; width: min(300px, 70%); height: auto; margin: 0 auto 4px; mix-blend-mode: multiply; }
+.welcome-art { display: block; width: min(380px, 80%); height: auto; margin: 0 auto 4px; mix-blend-mode: multiply; }
 [data-mode='dark'] .welcome-art { mix-blend-mode: screen; }
-.welcome-art { -webkit-mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, #000 55%, transparent 100%); }
+.welcome-art { -webkit-mask-image: radial-gradient(ellipse closest-side, #000 38%, transparent 100%); mask-image: radial-gradient(ellipse closest-side, #000 38%, transparent 100%); }
