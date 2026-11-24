@@ -120,7 +120,10 @@ def _parquet_path(dataset_id: str) -> Path:
 
 
 def _persist_to_disk(dataset_id: str, name: str, df: pd.DataFrame, columns: list[Column], schema_text: str) -> None:
-    df.to_parquet(_parquet_path(dataset_id))
+    # DuckDB writes Parquet natively, so no pyarrow/fastparquet dependency is needed (pandas.to_parquet requires one)
+    with duckdb.connect() as con:
+        con.register("frame", df)
+        con.execute(f"COPY frame TO '{_parquet_path(dataset_id).as_posix()}' (FORMAT PARQUET)")
     manifest = {
         "id": dataset_id,
         "name": name,
@@ -147,8 +150,9 @@ def _restore_from_disk(dataset_id: str) -> Dataset | None:
         return None
     try:
         manifest = json.loads(manifest_path.read_text())
-        df = pd.read_parquet(parquet_path)
-    except (json.JSONDecodeError, OSError, ValueError):
+        with duckdb.connect() as con:
+            df = con.execute(f"SELECT * FROM read_parquet('{parquet_path.as_posix()}')").df()
+    except (json.JSONDecodeError, OSError, ValueError, duckdb.Error):
         return None
 
     table = f"user_{dataset_id}"
@@ -262,11 +266,36 @@ def _build_schema_text(table: str, df: pd.DataFrame, columns: list[Column]) -> s
     return "\n".join(lines)
 
 
+def _read_csv(file_bytes: bytes) -> pd.DataFrame:
+    """Read an uploaded CSV whatever its text encoding and delimiter.
+
+    Spreadsheet exports are often not UTF-8: Excel on Windows writes cp1252, where byte 0xA0 is a non-breaking space,
+    and European Excel separates columns with ';'. Every failure becomes a plain message the user can act on."""
+    for encoding in ("utf-8-sig", "cp1252", "latin-1"):          # latin-1 can decode any byte, so the loop always ends
+        try:
+            df = pd.read_csv(io.BytesIO(file_bytes), encoding=encoding)
+        except UnicodeDecodeError:
+            continue
+        except pd.errors.EmptyDataError:
+            raise ValueError("CSV appears to be empty.")
+        except pd.errors.ParserError:
+            raise ValueError("Could not read that file as a CSV. Check that every row has the same number of columns.")
+        if len(df.columns) == 1:                                   # probably ';' or tab separated
+            try:
+                sniffed = pd.read_csv(io.BytesIO(file_bytes), encoding=encoding, sep=None, engine="python")
+                if len(sniffed.columns) > 1:
+                    df = sniffed
+            except Exception:
+                pass
+        return df
+    raise ValueError("Could not read the file's text encoding. Save it as 'CSV UTF-8' and try again.")
+
+
 def register_csv_dataset(filename: str, file_bytes: bytes) -> Dataset:
     if len(file_bytes) > MAX_UPLOAD_BYTES:
         raise ValueError(f"File too large — max {MAX_UPLOAD_BYTES // (1024 * 1024)}MB for this demo.")
 
-    df = pd.read_csv(io.BytesIO(file_bytes))
+    df = _read_csv(file_bytes)
     if len(df) == 0 or len(df.columns) == 0:
         raise ValueError("CSV appears to be empty.")
     if len(df) > MAX_ROWS:
